@@ -1232,6 +1232,8 @@ def add_run_cmd(user_data, cmd):
 
 
 def get_stack2yaml(stacks, base):
+    if not os.path.isdir(base):
+        return {}
     names = os.listdir(base)
     all_stacks = [os.path.splitext(_)[0] for _ in names if _.endswith("yaml")]
     dtslogger.info("The stacks that are available are: %s" % ", ".join(all_stacks))
