@@ -448,7 +448,6 @@ def build_if_not_exist(client, image_path, tag):
     except ImageNotFound:
         dtslogger.info("Building the mooc image ...")
         try:
-            #loader = 'Building .'
             for line in client.api.build(
                 path = image_path, nocache=True, 
                 rm=True,
