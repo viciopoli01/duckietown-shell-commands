@@ -109,6 +109,9 @@ class DTCommand(DTCommandAbs):
         pull_if_not_exist(client, ros_template_params["image"])
         ros_template_container = client.containers.run(**ros_template_params)
 
+        for a in client.api.attach("ros_template_catkin_build",stream=True,logs=True):
+            print(a.decode("utf-8"))
+
 def convertNotebook(filepath, export_path) -> bool:
     if not os.path.exists(filepath):
         return False
