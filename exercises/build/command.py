@@ -121,9 +121,6 @@ class DTCommand(DTCommandAbs):
 
         dtslogger.info("Build complete")
 
-        for a in client.api.attach("ros_template_catkin_build",stream=True,logs=True):
-            print(a.decode("utf-8"))
-
 def convertNotebook(filepath, export_path) -> bool:
     if not os.path.exists(filepath):
         return False
