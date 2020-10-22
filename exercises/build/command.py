@@ -13,6 +13,7 @@ from utils.docker_utils import build_if_not_exist, \
     default_env, remove_if_running, get_remote_client, \
     pull_if_not_exist
 from utils.networking_utils import get_duckiebot_ip
+from utils.cli_utils import start_command_in_subprocess
 
 usage = """
 
@@ -66,15 +67,21 @@ class DTCommand(DTCommandAbs):
             help="Will give you a terminal inside the container",
         )
 
+        parser.add_argument(
+            "--clean",
+            "-c",
+            dest="clean",
+            action="store_true",
+            default=False,
+            help="Will clean the build",
+        )
+
         parsed = parser.parse_args(args)
 
         working_dir = os.getcwd()
         if not os.path.exists(working_dir + "/config.yaml"):
             msg = "You must run this command inside the exercise directory"
             raise InvalidUserInput(msg)
-
-        # TODO read from the config.yaml file which template we should launch
-        dtslogger.info("Running the ros template")
 
         client = check_docker_environment()
 
@@ -85,6 +92,8 @@ class DTCommand(DTCommandAbs):
 
         if parsed.debug:
             cmd = "bash"
+        elif parsed.clean:
+            cmd = ["catkin", "clean", "--workspace", "exercise_ws"]
         else:
             cmd = ["catkin", "build", "--workspace", "exercise_ws"]
 
@@ -98,7 +107,6 @@ class DTCommand(DTCommandAbs):
             "name": container_name,
             "volumes": ros_template_volumes,
             "command": cmd,
-            "privileged": True,
             "stdin_open": True,
             "tty": True,
             "detach": True,
@@ -108,6 +116,10 @@ class DTCommand(DTCommandAbs):
 
         pull_if_not_exist(client, ros_template_params["image"])
         ros_template_container = client.containers.run(**ros_template_params)
+        attach_cmd = "docker attach %s" % container_name
+        start_command_in_subprocess(attach_cmd)
+
+        dtslogger.info("Build complete")
 
         for a in client.api.attach("ros_template_catkin_build",stream=True,logs=True):
             print(a.decode("utf-8"))
