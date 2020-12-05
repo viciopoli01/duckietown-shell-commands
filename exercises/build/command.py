@@ -83,6 +83,15 @@ class DTCommand(DTCommandAbs):
             msg = "You must run this command inside the exercise directory"
             raise InvalidUserInput(msg)
 
+        config = load_yaml(working_dir + "/config.yaml")
+
+        exercise_ws_dir = working_dir + "/exercise_ws"
+        package_dir = exercise_ws_dir +"/src/"+config["exercise"]["notebook_settings"]["package_name"]
+        
+        notebook = config["exercise"]["notebook_settings"]["notebook"]
+
+        convertNotebook(working_dir+f"/notebooks/{notebook}", notebook, package_dir)
+
         client = check_docker_environment()
 
         if parsed.staging:
@@ -121,22 +130,39 @@ class DTCommand(DTCommandAbs):
 
         dtslogger.info("Build complete")
 
-def convertNotebook(filepath, export_path) -> bool:
+def convertNotebook(filepath, filename, export_path) -> bool:
+    import nbformat  # install before?
+    from traitlets.config import Config
+
+    filepath = filepath+".ipynb"
     if not os.path.exists(filepath):
         return False
+
+    if not os.path.isfile(filepath):
+        dtslogger.error("No such file "+filepath+". Make sure the config.yaml is correct.")
+        exit(0)
+
     nb = nbformat.read(filepath, as_version=4)
-    exporter = PythonExporter()
+
+    # clean the notebook:
+    c = Config()
+    c.TagRemovePreprocessor.remove_cell_tags = ("skip",)
+
+    exporter = PythonExporter(config=c)
 
     # source is a tuple of python source code
     # meta contains metadata
     source, _ = exporter.from_notebook_node(nb)
+
+
     try:
-        with open(export_path, "w+") as fh:
+        with open(export_path+"/src/"+filename+".py", "w+") as fh:
             fh.writelines(source)
     except Exception:
         return False
 
     return True
+
 
 def load_yaml(file_name):
     with open(file_name) as f:

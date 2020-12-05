@@ -169,11 +169,10 @@ class DTCommand(DTCommandAbs):
 
         # done input checks
 
-
-
         #
         #   get current working directory to check if it is an exercise directory
         #
+
         working_dir = os.getcwd()
         exercise_name = os.path.basename(working_dir)
         dtslogger.info(f"Running exercise {exercise_name}")
@@ -181,6 +180,17 @@ class DTCommand(DTCommandAbs):
             msg = "You must run this command inside the exercise directory"
             raise InvalidUserInput(msg)
         env_dir = working_dir + "/assets/setup/"
+
+        # read the config file:
+        config = load_yaml(working_dir + "/config.yaml")
+
+
+        exercise_ws_dir = working_dir + "/exercise_ws"
+        package_dir = exercise_ws_dir +"/src/"+config["exercise"]["notebook_settings"]["package_name"]
+        
+        notebook = config["exercise"]["notebook_settings"]["notebook"]
+
+        convertNotebook(working_dir+f"/notebooks/{notebook}", notebook, package_dir)
 
         if parsed.local:
             agent_client = local_client
@@ -190,10 +200,6 @@ class DTCommand(DTCommandAbs):
             check_program_dependency('rsync')
             remote_base_path = f"{DEFAULT_REMOTE_USER}@{duckiebot_name}.local:/code/"
             dtslogger.info(f"Syncing your local folder with {duckiebot_name}")
-
-            # exercise_ws_dir = working_dir + "/exercise_ws"
-
-            # convertNotebook(working_dir+"/notebooks",exercise_ws_dir)
 
             exercise_cmd = f"rsync --archive {working_dir} {remote_base_path}"
             _run_cmd(exercise_cmd, shell=True)
@@ -423,6 +429,7 @@ class DTCommand(DTCommandAbs):
         
         exit(0)
 
+
 def cleanUp(agent_client,local_client,restart_agent,sim_container_name,ros_container_name,vnc_container_name,middleware_container_name,ros_template_container_name,bridge_container_name):
     if restart_agent:
         remove_if_running(agent_client, ros_template_container_name)
@@ -538,31 +545,64 @@ def launch_bridge(bridge_container_name, duckiebot_name, fifos_bind, bridge_imag
     pull_if_not_exist(agent_client, bridge_params["image"])
     bridge_container = agent_client.containers.run(**bridge_params)
 
-
-def convertNotebook(filepath, export_path) -> bool:
+def convertNotebook(filepath, filename, export_path) -> bool:
     import nbformat  # install before?
+    from traitlets.config import Config
+
+    filepath = filepath+".ipynb"
     if not os.path.exists(filepath):
         return False
 
-    for filename in os.listdir(filepath):
+    if not os.path.isfile(filepath):
+        dtslogger.error("No such file "+filepath+". Make sure the config.yaml is correct.")
+        exit(0)
 
-        if not os.path.isfile(os.path.join(filepath, filename)):
-            continue
+    nb = nbformat.read(filepath, as_version=4)
 
-        nb = nbformat.read(filepath+"/"+filename, as_version=4)
-        exporter = PythonExporter()
+    # clean the notebook:
+    c = Config()
+    c.TagRemovePreprocessor.remove_cell_tags = ("skip",)
 
-        # source is a tuple of python source code
-        # meta contains metadata
-        source, _ = exporter.from_notebook_node(nb)
-        try:
-            name, ext = os.path.splitext(filename)
-            with open(export_path+"/"+name+".py", "w+") as fh:
-                fh.writelines(source)
-        except Exception:
-            return False
+    exporter = PythonExporter(config=c)
+
+    # source is a tuple of python source code
+    # meta contains metadata
+    source, _ = exporter.from_notebook_node(nb)
+
+
+    try:
+        with open(export_path+"/src/"+filename+".py", "w+") as fh:
+            fh.writelines(source)
+    except Exception:
+        return False
 
     return True
+
+
+# def convertAllNotebook(filepath, export_path) -> bool:
+#     import nbformat  # install before?
+#     if not os.path.exists(filepath):
+#         return False
+
+#     for filename in os.listdir(filepath):
+
+#         if not os.path.isfile(os.path.join(filepath, filename)):
+#             continue
+
+#         nb = nbformat.read(filepath+"/"+filename, as_version=4)
+#         exporter = PythonExporter()
+
+#         # source is a tuple of python source code
+#         # meta contains metadata
+#         source, _ = exporter.from_notebook_node(nb)
+#         try:
+#             name, ext = os.path.splitext(filename)
+#             with open(export_path+"/"+name+".py", "w+") as fh:
+#                 fh.writelines(source)
+#         except Exception:
+#             return False
+
+#     return True
 
 def load_yaml(file_name):
     with open(file_name) as f:
