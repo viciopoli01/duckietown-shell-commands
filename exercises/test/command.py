@@ -579,31 +579,6 @@ def convertNotebook(filepath, filename, export_path) -> bool:
     return True
 
 
-# def convertAllNotebook(filepath, export_path) -> bool:
-#     import nbformat  # install before?
-#     if not os.path.exists(filepath):
-#         return False
-
-#     for filename in os.listdir(filepath):
-
-#         if not os.path.isfile(os.path.join(filepath, filename)):
-#             continue
-
-#         nb = nbformat.read(filepath+"/"+filename, as_version=4)
-#         exporter = PythonExporter()
-
-#         # source is a tuple of python source code
-#         # meta contains metadata
-#         source, _ = exporter.from_notebook_node(nb)
-#         try:
-#             name, ext = os.path.splitext(filename)
-#             with open(export_path+"/"+name+".py", "w+") as fh:
-#                 fh.writelines(source)
-#         except Exception:
-#             return False
-
-#     return True
-
 def load_yaml(file_name):
     with open(file_name) as f:
         try:
